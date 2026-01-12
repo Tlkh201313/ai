@@ -1,0 +1,1695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comet AI - Claude Sonnet & Multi-Model Agent</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #10a37f;
+            --primary-dark: #0d8c6d;
+            --claude-blue: #3b82f6;
+            --claude-purple: #8b5cf6;
+            --secondary: #ec4899;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-elevated: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        .animated-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.3;
+            animation: float 20s infinite;
+        }
+
+        .orb1 {
+            width: 500px;
+            height: 500px;
+            background: linear-gradient(45deg, var(--claude-blue), var(--claude-purple));
+            top: -250px;
+            left: -250px;
+        }
+
+        .orb2 {
+            width: 400px;
+            height: 400px;
+            background: linear-gradient(135deg, var(--primary), var(--claude-blue));
+            bottom: -200px;
+            right: -200px;
+            animation-delay: 5s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(100px, -100px); }
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .header {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            animation: slideDown 0.5s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .logo-icon {
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(135deg, var(--claude-blue), var(--claude-purple));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: pulse-glow 2s infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { 
+                box-shadow: 0 0 20px rgba(59, 130, 246, 0.4); 
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 0 40px rgba(59, 130, 246, 0.8); 
+                transform: scale(1.05);
+            }
+        }
+
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-badge.connected {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+
+        .status-badge.disconnected {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger);
+            color: var(--danger);
+        }
+
+        .status-badge.thinking {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid var(--info);
+            color: var(--info);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .status-dot.pulse {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { 
+                opacity: 1;
+                transform: scale(1);
+            }
+            50% { 
+                opacity: 0.5;
+                transform: scale(1.2);
+            }
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--claude-blue), var(--claude-purple));
+            border: none;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--claude-purple), var(--claude-blue));
+        }
+
+        .main-content {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 20px;
+            overflow: hidden;
+        }
+
+        .chat-area {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        .message {
+            display: flex;
+            gap: 15px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            animation: avatarAppear 0.5s ease-out;
+        }
+
+        @keyframes avatarAppear {
+            from {
+                transform: scale(0);
+            }
+            to {
+                transform: scale(1);
+            }
+        }
+
+        .user-avatar {
+            background: linear-gradient(135deg, var(--secondary), #f97316);
+        }
+
+        .ai-avatar {
+            background: linear-gradient(135deg, var(--claude-blue), var(--claude-purple));
+        }
+
+        .message-content {
+            flex: 1;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .message-text {
+            background: var(--bg-card);
+            padding: 15px 20px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            line-height: 1.6;
+            white-space: pre-wrap;
+            font-size: 14px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .message-text::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(to bottom, var(--claude-blue), var(--claude-purple));
+            border-radius: 4px 0 0 4px;
+        }
+
+        .ai-message .message-text {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .ai-message .message-text::before {
+            background: linear-gradient(to bottom, var(--success), var(--info));
+        }
+
+        .model-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .model-badge.claude {
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+            color: var(--claude-blue);
+        }
+
+        .model-badge.coding {
+            background: rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: var(--success);
+        }
+
+        .model-badge.reasoning {
+            background: rgba(236, 72, 153, 0.2);
+            border: 1px solid rgba(236, 72, 153, 0.4);
+            color: var(--secondary);
+        }
+
+        .model-badge.vision {
+            background: rgba(245, 158, 11, 0.2);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            color: var(--warning);
+        }
+
+        .thinking-indicator {
+            padding: 15px 20px;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 16px;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .thinking-dots {
+            display: flex;
+            gap: 4px;
+        }
+
+        .thinking-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--claude-blue);
+            animation: bounce 1.4s infinite;
+        }
+
+        .thinking-dot:nth-child(2) { animation-delay: 0.2s; }
+        .thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0.5); opacity: 0.5; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        .chat-input-area {
+            padding: 20px;
+            border-top: 1px solid var(--border);
+            background: rgba(30, 41, 59, 0.5);
+        }
+
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input {
+            flex: 1;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 15px 20px;
+            color: var(--text-primary);
+            font-size: 15px;
+            resize: none;
+            max-height: 120px;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--claude-blue);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .send-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--claude-blue), var(--claude-purple));
+            border: none;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .send-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .send-btn:hover::before {
+            left: 100%;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            transform: translateY(-2px) scale(1.05);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .panel {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 25px;
+            animation: panelSlideIn 0.4s ease-out;
+        }
+
+        @keyframes panelSlideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .model-card {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .model-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .model-card:hover::before {
+            left: 100%;
+        }
+
+        .model-card:hover {
+            border-color: var(--claude-blue);
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .model-card.active {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: var(--claude-blue);
+        }
+
+        .model-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .model-name {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .model-size {
+            font-size: 11px;
+            color: var(--text-secondary);
+            padding: 2px 8px;
+            background: rgba(148, 163, 184, 0.1);
+            border-radius: 10px;
+        }
+
+        .model-purpose {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 5px;
+        }
+
+        .welcome-screen {
+            text-align: center;
+            padding: 60px 20px;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .welcome-icon {
+            font-size: 80px;
+            background: linear-gradient(135deg, var(--claude-blue), var(--claude-purple));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 20px;
+            display: inline-block;
+            animation: iconFloat 3s ease-in-out infinite;
+        }
+
+        @keyframes iconFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .welcome-title {
+            font-size: 36px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, var(--claude-blue), var(--claude-purple));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .welcome-subtitle {
+            font-size: 16px;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.6;
+        }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .quick-action {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .quick-action::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .quick-action:hover::before {
+            left: 100%;
+        }
+
+        .quick-action:hover {
+            transform: translateY(-4px) scale(1.02);
+            border-color: var(--claude-blue);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .quick-action i {
+            font-size: 32px;
+            color: var(--claude-blue);
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            z-index: 1000;
+            animation: slideUp 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            backdrop-filter: blur(10px);
+            max-width: 400px;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            to {
+                transform: translateY(100px);
+                opacity: 0;
+            }
+        }
+
+        .notification.success {
+            background: rgba(16, 185, 129, 0.9);
+            border: 1px solid var(--success);
+        }
+
+        .notification.error {
+            background: rgba(239, 68, 68, 0.9);
+            border: 1px solid var(--danger);
+        }
+
+        .notification.info {
+            background: rgba(59, 130, 246, 0.9);
+            border: 1px solid var(--info);
+        }
+
+        .notification.warning {
+            background: rgba(245, 158, 11, 0.9);
+            border: 1px solid var(--warning);
+        }
+
+        .message-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .message:hover .message-actions {
+            opacity: 1;
+        }
+
+        .action-btn {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 4px 8px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: var(--claude-blue);
+            color: white;
+            border-color: var(--claude-blue);
+        }
+
+        .memory-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 10px;
+            font-size: 10px;
+            color: var(--info);
+            margin-top: 5px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            .header {
+                padding: 15px 20px;
+            }
+            .quick-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="animated-bg">
+        <div class="orb orb1"></div>
+        <div class="orb orb2"></div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <span>Comet AI - Claude Sonnet Powered</span>
+            </div>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <div class="status-badge disconnected" id="statusBadge">
+                    <div class="status-dot"></div>
+                    <span>Disconnected</span>
+                </div>
+                <button class="btn btn-primary" id="newChat">
+                    <i class="fas fa-plus"></i> New Session
+                </button>
+                <button class="btn" id="memoryToggle">
+                    <i class="fas fa-brain"></i> Memory: ON
+                </button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="chat-area">
+                <div class="chat-messages" id="messages">
+                    <div class="welcome-screen" id="welcome">
+                        <div class="welcome-icon">
+                            <i class="fas fa-brain"></i>
+                        </div>
+                        <h1 class="welcome-title">Claude Sonnet Multi-Model AI</h1>
+                        <p class="welcome-subtitle">
+                            Powered by Claude Sonnet system prompts. I automatically route your tasks to specialized AI models with Claude's intelligence and reasoning capabilities.
+                        </p>
+                        
+                        <div class="quick-actions">
+                            <div class="quick-action" onclick="setPrompt('Research quantum computing applications and provide implementation examples with Claude-like reasoning')">
+                                <i class="fas fa-microscope"></i>
+                                <div style="font-weight: 600; margin-top: 10px;">Claude Reasoning</div>
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 5px;">Using Claude Sonnet Logic</div>
+                            </div>
+                            <div class="quick-action" onclick="setPrompt('Create a complete REST API with authentication using FastAPI, following Claude best practices')">
+                                <i class="fas fa-code"></i>
+                                <div style="font-weight: 600; margin-top: 10px;">Claude Coding</div>
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 5px;">Yi-Coder with Claude prompt</div>
+                            </div>
+                            <div class="quick-action" onclick="setPrompt('Analyze market trends for AI startups in 2024 with detailed insights and Claude-style analysis')">
+                                <i class="fas fa-chart-line"></i>
+                                <div style="font-weight: 600; margin-top: 10px;">Business Analysis</div>
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 5px;">Using Claude Sonnet Thinking</div>
+                            </div>
+                            <div class="quick-action" onclick="setPrompt('Write a comprehensive guide to modern web development with Claude-style explanations and examples')">
+                                <i class="fas fa-book"></i>
+                                <div style="font-weight: 600; margin-top: 10px;">Claude Writing</div>
+                                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 5px;">Llama 3.1 with Claude prompt</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input-area">
+                    <div class="input-container">
+                        <textarea 
+                            class="chat-input" 
+                            id="input" 
+                            placeholder="Ask me anything... I'll use Claude Sonnet intelligence for your task!" 
+                            rows="1"
+                        ></textarea>
+                        <button class="send-btn" id="send">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="panel">
+                    <div class="panel-title">
+                        <i class="fas fa-robot"></i> Claude-Powered Models
+                    </div>
+                    
+                    <!-- Claude Sonnet Models -->
+                    <div class="model-card" data-model="llama3.1-claude" data-purpose="claude">
+                        <div class="model-header">
+                            <div class="model-name">🤖 Llama 3.1 Claude</div>
+                            <div class="model-size">4.9 GB</div>
+                        </div>
+                        <div class="model-purpose">General Claude intelligence & reasoning</div>
+                    </div>
+
+                    <div class="model-card" data-model="llama3.2-claude3.7" data-purpose="claude">
+                        <div class="model-header">
+                            <div class="model-name">🚀 Llama 3.2 Claude 3.7</div>
+                            <div class="model-size">2.0 GB</div>
+                        </div>
+                        <div class="model-purpose">Latest Claude Sonnet intelligence</div>
+                    </div>
+
+                    <div class="model-card" data-model="yi-coder" data-purpose="coding">
+                        <div class="model-header">
+                            <div class="model-name">🔧 Yi-Coder 9B</div>
+                            <div class="model-size">5.2 GB</div>
+                        </div>
+                        <div class="model-purpose">Claude-style coding assistance</div>
+                    </div>
+
+                    <div class="model-card" data-model="qwen2.5-coder-tools:7b" data-purpose="coding">
+                        <div class="model-header">
+                            <div class="model-name">⚡ Qwen 2.5 Coder 7B</div>
+                            <div class="model-size">4.7 GB</div>
+                        </div>
+                        <div class="model-purpose">Coding with Claude Dev tools</div>
+                    </div>
+
+                    <div class="model-card" data-model="deepseek_r1-claude3.7" data-purpose="reasoning">
+                        <div class="model-header">
+                            <div class="model-name">🧠 DeepSeek R1 Claude</div>
+                            <div class="model-size">19 GB</div>
+                        </div>
+                        <div class="model-purpose">Deep reasoning with Claude logic</div>
+                    </div>
+
+                    <div class="model-card" data-model="granite3.2-vision" data-purpose="vision">
+                        <div class="model-header">
+                            <div class="model-name">👁️ Granite 3.2 Vision</div>
+                            <div class="model-size">1.8 GB</div>
+                        </div>
+                        <div class="model-purpose">Document analysis & vision tasks</div>
+                    </div>
+
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" id="connect">
+                        <i class="fas fa-plug"></i> Connect to Ollama
+                    </button>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-title">
+                        <i class="fas fa-info-circle"></i> How It Works
+                    </div>
+                    <div style="font-size: 13px; line-height: 1.8; color: var(--text-secondary);">
+                        <p style="margin-bottom: 10px;">All models use <strong>Claude Sonnet system prompts</strong> for enhanced intelligence:</p>
+                        <ul style="padding-left: 20px; margin-bottom: 15px;">
+                            <li><strong>🤖 Claude Intelligence:</strong> Llama 3.1/3.2 with Claude prompts</li>
+                            <li><strong>🔧 Claude Coding:</strong> Yi-Coder & Qwen with Claude Dev tools</li>
+                            <li><strong>🧠 Deep Reasoning:</strong> DeepSeek R1 with Claude logic</li>
+                            <li><strong>👁️ Vision:</strong> Granite for document analysis</li>
+                        </ul>
+                        <div class="memory-badge">
+                            <i class="fas fa-brain"></i> Claude Context Memory: Enabled
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Claude Sonnet Powered Model Configuration
+        const modelConfig = {
+            claude: {
+                model: 'llama3.1-claude',
+                keywords: ['claude', 'sonnet', 'reasoning', 'thinking', 'analyze', 'explain',
+                          'discuss', 'philosophy', 'ethics', 'strategy', 'planning', 'decision',
+                          'compare', 'evaluate', 'critique', 'debate', 'theory', 'concept'],
+                badge: 'claude',
+                icon: '🤖',
+                temperature: 0.3,
+                max_tokens: 4096,
+                system_prompt: `You are Claude, an AI assistant created by Anthropic. You are helpful, harmless, and honest. Provide detailed, thoughtful responses with careful reasoning. Always consider multiple perspectives and provide balanced analysis.`
+            },
+            coding: {
+                model: 'yi-coder',
+                keywords: ['code', 'program', 'script', 'function', 'class', 'api', 'debug',
+                          'javascript', 'python', 'java', 'c++', 'html', 'css', 'sql',
+                          'frontend', 'backend', 'framework', 'library', 'github', 'git',
+                          'docker', 'kubernetes', 'aws', 'azure', 'cloud', 'algorithm',
+                          'data structure', 'optimization', 'refactor'],
+                badge: 'coding',
+                icon: '🔧',
+                temperature: 0.2,
+                max_tokens: 4096,
+                system_prompt: `You are Claude, a coding expert. Provide production-ready code with comprehensive comments, error handling, and best practices. Follow clean code principles and include tests where appropriate. Explain your reasoning clearly.`
+            },
+            reasoning: {
+                model: 'deepseek_r1-claude3.7',
+                keywords: ['deep', 'reasoning', 'logic', 'step by step', 'chain of thought',
+                          'analyze deeply', 'complex', 'sophisticated', 'intricate',
+                          'philosophical', 'theoretical', 'mathematical', 'scientific',
+                          'research', 'investigation', 'exploration', 'examination'],
+                badge: 'reasoning',
+                icon: '🧠',
+                temperature: 0.1,
+                max_tokens: 8192,
+                system_prompt: `You are Claude, engaged in deep reasoning. Use chain-of-thought to break down complex problems. Show your work step by step. Consider edge cases, assumptions, and alternative approaches. Provide thorough explanations.`
+            },
+            analysis: {
+                model: 'llama3.2-claude3.7',
+                keywords: ['analyze', 'analysis', 'data', 'statistics', 'trend', 'market',
+                          'business', 'financial', 'report', 'insights', 'metrics', 'kpi',
+                          'dashboard', 'chart', 'graph', 'visualize', 'predict', 'forecast',
+                          'swot', 'pest', 'competitive', 'benchmark', 'performance'],
+                badge: 'claude',
+                icon: '📊',
+                temperature: 0.4,
+                max_tokens: 3072,
+                system_prompt: `You are Claude, a data analyst. Provide data-driven insights with clear visualizations and actionable recommendations. Consider business context and practical implications.`
+            },
+            vision: {
+                model: 'granite3.2-vision',
+                keywords: ['image', 'picture', 'photo', 'visual', 'see', 'look', 'describe',
+                          'caption', 'identify', 'recognize', 'detect', 'analyze image',
+                          'document', 'table', 'chart', 'infographic', 'plot', 'diagram',
+                          'extract', 'read', 'scan', 'ocr'],
+                badge: 'vision',
+                icon: '👁️',
+                temperature: 0.3,
+                max_tokens: 2048,
+                system_prompt: `You are Claude, with visual understanding capabilities. Describe images in detail, extract information from documents, analyze visual data, and provide comprehensive visual analysis.`
+            },
+            general: {
+                model: 'llama3.2-claude3.7',
+                keywords: [], // catch-all
+                badge: 'claude',
+                icon: '💬',
+                temperature: 0.7,
+                max_tokens: 2048,
+                system_prompt: `You are Claude, a helpful AI assistant. Provide accurate, helpful information with a friendly tone. Be thorough but concise when appropriate.`
+            }
+        };
+
+        // Application State
+        const state = {
+            connected: false,
+            url: 'http://localhost:11434',
+            messages: [],
+            currentModel: null,
+            memoryEnabled: true,
+            conversationHistory: [],
+            activeConnection: null
+        };
+
+        // DOM Elements
+        const $ = id => document.getElementById(id);
+        const messages = $('messages');
+        const input = $('input');
+        const send = $('send');
+        const connect = $('connect');
+        const statusBadge = $('statusBadge');
+        const welcome = $('welcome');
+        const newChatBtn = $('newChat');
+        const memoryToggle = $('memoryToggle');
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Comet AI - Claude Sonnet Edition loaded');
+            setupEventListeners();
+            autoConnect();
+        });
+
+        function setupEventListeners() {
+            // Auto-resize textarea
+            input.addEventListener('input', () => {
+                input.style.height = 'auto';
+                input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+            });
+
+            // Enter to send (Shift+Enter for new line)
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            // Event Listeners
+            send.addEventListener('click', sendMessage);
+            connect.addEventListener('click', connectToOllama);
+            newChatBtn.addEventListener('click', startNewChat);
+            memoryToggle.addEventListener('click', toggleMemory);
+
+            // Model card click handlers
+            document.querySelectorAll('.model-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const model = card.dataset.model;
+                    const purpose = card.dataset.purpose;
+                    selectModelManually(model, purpose);
+                });
+            });
+        }
+
+        // Set prompt from quick actions
+        window.setPrompt = function(text) {
+            input.value = text;
+            input.focus();
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+        };
+
+        // Auto-connect on load
+        async function autoConnect() {
+            console.log('Auto-connecting to Ollama...');
+            statusBadge.className = 'status-badge thinking';
+            statusBadge.querySelector('span').textContent = 'Auto-connecting...';
+            
+            try {
+                const response = await fetch('http://localhost:11434/api/tags', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    handleSuccessfulConnection(data);
+                } else {
+                    throw new Error('Ollama returned error');
+                }
+            } catch (error) {
+                console.log('Auto-connect failed, manual connect required');
+                statusBadge.className = 'status-badge disconnected';
+                statusBadge.querySelector('span').textContent = 'Click to Connect';
+            }
+        }
+
+        // Connect to Ollama manually
+        async function connectToOllama() {
+            // Update UI
+            statusBadge.className = 'status-badge thinking';
+            statusBadge.querySelector('span').textContent = 'Connecting...';
+            connect.disabled = true;
+            connect.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Connecting';
+
+            try {
+                const response = await fetch('http://localhost:11434/api/tags', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    handleSuccessfulConnection(data);
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Connection error:', error);
+                handleConnectionError();
+            } finally {
+                connect.disabled = false;
+                connect.innerHTML = '<i class="fas fa-plug"></i> Connect to Ollama';
+            }
+        }
+
+        function handleSuccessfulConnection(data) {
+            state.connected = true;
+            state.activeConnection = new Date();
+            
+            // Update status
+            statusBadge.className = 'status-badge connected';
+            statusBadge.querySelector('.status-dot').classList.add('pulse');
+            
+            const modelCount = data.models?.length || 0;
+            if (modelCount > 0) {
+                statusBadge.querySelector('span').textContent = `Claude Ready (${modelCount} models) ✓`;
+            } else {
+                statusBadge.querySelector('span').textContent = 'Connected (No models)';
+            }
+            
+            // Show notification
+            showNotification(`✓ Connected to Ollama! ${modelCount} Claude-powered models available.`, 'success');
+            
+            // Highlight available models
+            if (data.models && data.models.length > 0) {
+                highlightAvailableModels(data.models);
+                
+                // Auto-select default model
+                selectDefaultModel(data.models);
+            }
+        }
+
+        function handleConnectionError() {
+            state.connected = false;
+            
+            // Update status
+            statusBadge.className = 'status-badge disconnected';
+            statusBadge.querySelector('span').textContent = 'Connection Failed';
+            
+            // Show error notification
+            showNotification(
+                'Cannot connect to Ollama. Make sure:<br>' +
+                '1. Ollama is running (check Task Manager)<br>' +
+                '2. Run: <code>ollama serve</code> in terminal<br>' +
+                '3. Refresh and try again',
+                'error'
+            );
+        }
+
+        // Highlight available models
+        function highlightAvailableModels(availableModels) {
+            document.querySelectorAll('.model-card').forEach(card => {
+                const modelName = card.dataset.model;
+                const isAvailable = availableModels.some(m => m.name === modelName);
+                
+                if (isAvailable) {
+                    card.classList.add('active');
+                    card.style.opacity = '1';
+                    card.style.borderColor = 'var(--success)';
+                } else {
+                    card.classList.remove('active');
+                    card.style.opacity = '0.5';
+                }
+            });
+        }
+
+        // Select default model
+        function selectDefaultModel(availableModels) {
+            const priorityModels = [
+                'llama3.1-claude',
+                'llama3.2-claude3.7',
+                'yi-coder',
+                'qwen2.5-coder-tools:7b',
+                'granite3.2-vision',
+                'deepseek_r1-claude3.7'
+            ];
+            
+            for (const modelName of priorityModels) {
+                const isAvailable = availableModels.some(m => m.name === modelName);
+                if (isAvailable) {
+                    for (const [type, config] of Object.entries(modelConfig)) {
+                        if (config.model === modelName) {
+                            state.currentModel = config;
+                            console.log(`Auto-selected model: ${config.icon} ${modelName}`);
+                            return;
+                        }
+                    }
+                }
+            }
+            
+            // Fallback to first available model
+            if (availableModels.length > 0) {
+                const firstModel = availableModels[0].name;
+                for (const [type, config] of Object.entries(modelConfig)) {
+                    if (config.model === firstModel) {
+                        state.currentModel = config;
+                        console.log(`Fallback selected: ${config.icon} ${firstModel}`);
+                        return;
+                    }
+                }
+            }
+            
+            // Default to Claude
+            state.currentModel = modelConfig.claude;
+        }
+
+        // Manual model selection
+        function selectModelManually(modelName, purpose) {
+            for (const [type, config] of Object.entries(modelConfig)) {
+                if (config.model === modelName) {
+                    state.currentModel = config;
+                    showNotification(`Selected: ${config.icon} ${modelName.split(':')[0]}`, 'info');
+                    return;
+                }
+            }
+            
+            // If exact match not found, try partial match
+            for (const [type, config] of Object.entries(modelConfig)) {
+                if (modelName.includes(config.model.split(':')[0])) {
+                    state.currentModel = config;
+                    showNotification(`Selected: ${config.icon} ${config.model.split(':')[0]}`, 'info');
+                    return;
+                }
+            }
+        }
+
+        // Smart model selection based on prompt
+        function selectModel(prompt) {
+            const lowerPrompt = prompt.toLowerCase();
+            let scores = {};
+            
+            // Calculate scores for each model type
+            for (const [type, config] of Object.entries(modelConfig)) {
+                let score = 0;
+                
+                // Keyword matching
+                for (const keyword of config.keywords) {
+                    if (lowerPrompt.includes(keyword)) {
+                        score += 2;
+                    }
+                }
+                
+                // Special patterns
+                if (type === 'coding' && (
+                    lowerPrompt.includes('function') || 
+                    lowerPrompt.includes('class') ||
+                    lowerPrompt.includes('def ') ||
+                    lowerPrompt.includes('const ') ||
+                    lowerPrompt.includes('import ') ||
+                    lowerPrompt.includes('from ')
+                )) {
+                    score += 5;
+                }
+                
+                if (type === 'reasoning' && (
+                    lowerPrompt.includes('explain why') ||
+                    lowerPrompt.includes('step by step') ||
+                    lowerPrompt.includes('analyze the') ||
+                    lowerPrompt.length > 100
+                )) {
+                    score += 5;
+                }
+                
+                if (type === 'vision' && (
+                    lowerPrompt.includes('image') ||
+                    lowerPrompt.includes('picture') ||
+                    lowerPrompt.includes('photo') ||
+                    lowerPrompt.includes('document')
+                )) {
+                    score += 5;
+                }
+                
+                scores[type] = score;
+            }
+            
+            // Find best match
+            let bestType = 'general';
+            let bestScore = scores.general;
+            
+            for (const [type, score] of Object.entries(scores)) {
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestType = type;
+                }
+            }
+            
+            return modelConfig[bestType];
+        }
+
+        // Send message to Ollama
+        async function sendMessage() {
+            const text = input.value.trim();
+            if (!text) return;
+            
+            if (!state.connected) {
+                showNotification('Please connect to Ollama first!', 'error');
+                return;
+            }
+
+            // Hide welcome screen
+            welcome.style.display = 'none';
+            
+            // Add user message
+            addMessage(text, 'user');
+            
+            // Clear input
+            input.value = '';
+            input.style.height = 'auto';
+            
+            // Disable input while processing
+            send.disabled = true;
+            input.disabled = true;
+            
+            // Select appropriate model
+            const selectedModel = selectModel(text);
+            state.currentModel = selectedModel;
+            
+            // Show thinking indicator
+            const thinkingId = addThinkingIndicator(selectedModel);
+            
+            // Show model notification
+            showNotification(
+                `${selectedModel.icon} Using ${selectedModel.model.split(':')[0]} (Claude Sonnet)`,
+                'info'
+            );
+            
+            try {
+                // Prepare conversation context
+                let conversationContext = '';
+                if (state.memoryEnabled && state.conversationHistory.length > 0) {
+                    conversationContext = 'Previous conversation:\n';
+                    state.conversationHistory.slice(-3).forEach(msg => {
+                        conversationContext += `${msg.role}: ${msg.content}\n`;
+                    });
+                    conversationContext += '\nCurrent question: ';
+                }
+                
+                // Enhance prompt with Claude system prompt
+                const enhancedPrompt = `${selectedModel.system_prompt}\n\n${conversationContext}${text}`;
+                
+                // Prepare request body
+                const requestBody = {
+                    model: selectedModel.model,
+                    prompt: enhancedPrompt,
+                    stream: false,
+                    options: {
+                        temperature: selectedModel.temperature,
+                        top_p: 0.9,
+                        top_k: 40,
+                        num_predict: selectedModel.max_tokens,
+                        repeat_penalty: 1.1
+                    }
+                };
+                
+                // Send request to Ollama
+                const response = await fetch(`${state.url}/api/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Ollama API error: ${response.status} - ${errorText}`);
+                }
+
+                const data = await response.json();
+                
+                // Remove thinking indicator
+                removeElement(thinkingId);
+                
+                // Add AI response
+                addMessage(data.response, 'ai', selectedModel);
+                
+                // Update conversation history
+                if (state.memoryEnabled) {
+                    state.conversationHistory.push({ role: 'user', content: text });
+                    state.conversationHistory.push({ role: 'assistant', content: data.response });
+                    
+                    // Keep last 10 exchanges
+                    if (state.conversationHistory.length > 20) {
+                        state.conversationHistory = state.conversationHistory.slice(-20);
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Error sending message:', error);
+                
+                // Remove thinking indicator
+                removeElement(thinkingId);
+                
+                // Show error message
+                addMessage(
+                    `Error: ${error.message}\n\n` +
+                    `Model attempted: ${selectedModel.model}\n\n` +
+                    `Try installing the model:\n` +
+                    `\`\`\`cmd\nollama pull ${selectedModel.model}\n\`\`\``,
+                    'ai',
+                    selectedModel
+                );
+                
+                showNotification('Response failed. Try a different model.', 'warning');
+            } finally {
+                // Re-enable input
+                send.disabled = false;
+                input.disabled = false;
+                input.focus();
+            }
+        }
+
+        // Add message to chat
+        function addMessage(text, type, modelConfig = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}-message`;
+            
+            // Create avatar
+            const avatarDiv = document.createElement('div');
+            avatarDiv.className = `message-avatar ${type}-avatar`;
+            avatarDiv.innerHTML = `<i class="fas fa-${type === 'user' ? 'user' : 'robot'}"></i>`;
+            
+            // Create message content
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            // Add header with model info for AI messages
+            if (type === 'ai' && modelConfig) {
+                const modelName = modelConfig.model.split(':')[0];
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'message-header';
+                headerDiv.innerHTML = `
+                    <span class="model-badge ${modelConfig.badge}">${modelConfig.icon} ${modelName}</span>
+                    <span>•</span>
+                    <span>${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                `;
+                contentDiv.appendChild(headerDiv);
+            } else if (type === 'user') {
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'message-header';
+                headerDiv.innerHTML = `
+                    <span>👤 You</span>
+                    <span>•</span>
+                    <span>${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                `;
+                contentDiv.appendChild(headerDiv);
+            }
+            
+            // Add message text
+            const textDiv = document.createElement('div');
+            textDiv.className = 'message-text';
+            textDiv.innerHTML = formatMessage(text);
+            
+            // Add action buttons
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'message-actions';
+            actionsDiv.innerHTML = `
+                <button class="action-btn" onclick="copyToClipboard(this)">
+                    <i class="fas fa-copy"></i> Copy
+                </button>
+                <button class="action-btn" onclick="regenerateResponse()">
+                    <i class="fas fa-redo"></i> Regenerate
+                </button>
+            `;
+            
+            contentDiv.appendChild(textDiv);
+            contentDiv.appendChild(actionsDiv);
+            
+            // Assemble message
+            messageDiv.appendChild(avatarDiv);
+            messageDiv.appendChild(contentDiv);
+            
+            // Add to messages container
+            messages.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            messages.scrollTop = messages.scrollHeight;
+            
+            // Store message in state
+            state.messages.push({ text, type, modelConfig, timestamp: new Date() });
+        }
+
+        // Add thinking indicator
+        function addThinkingIndicator(modelConfig) {
+            const thinkingId = 'thinking-' + Date.now();
+            
+            const thinkingDiv = document.createElement('div');
+            thinkingDiv.id = thinkingId;
+            thinkingDiv.className = 'message ai-message';
+            
+            thinkingDiv.innerHTML = `
+                <div class="message-avatar ai-avatar">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="message-content">
+                    <div class="message-header">
+                        <span class="model-badge ${modelConfig.badge}">${modelConfig.icon} ${modelConfig.model.split(':')[0]}</span>
+                        <span>•</span>
+                        <span>Claude is thinking...</span>
+                    </div>
+                    <div class="thinking-indicator">
+                        <div class="thinking-dots">
+                            <div class="thinking-dot"></div>
+                            <div class="thinking-dot"></div>
+                            <div class="thinking-dot"></div>
+                        </div>
+                        <span style="font-size: 13px; color: var(--text-secondary);">
+                            Claude Sonnet reasoning in progress...
+                        </span>
+                    </div>
+                </div>
+            `;
+            
+            messages.appendChild(thinkingDiv);
+            messages.scrollTop = messages.scrollHeight;
+            
+            return thinkingId;
+        }
+
+        // Remove element by ID
+        function removeElement(id) {
+            const element = document.getElementById(id);
+            if (element) {
+                element.remove();
+            }
+        }
+
+        // Format message text
+        function formatMessage(text) {
+            // Convert markdown-style code blocks
+            let formatted = text
+                .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre><code class="language-$1">$2</code></pre>')
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>');
+            
+            // Wrap in paragraphs if needed
+            if (!formatted.startsWith('<')) {
+                formatted = `<p>${formatted}</p>`;
+            }
+            
+            return formatted;
+        }
+
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+                <span>${message}</span>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Remove after 5 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => notification.remove(), 300);
+            }, 5000);
+        }
+
+        // Start new chat
+        function startNewChat() {
+            if (state.messages.length > 0) {
+                if (confirm('Start a new chat? Your current conversation will be cleared.')) {
+                    state.messages = [];
+                    state.conversationHistory = [];
+                    messages.innerHTML = '';
+                    welcome.style.display = 'block';
+                    showNotification('Started new Claude chat session', 'info');
+                }
+            }
+        }
+
+        // Toggle memory
+        function toggleMemory() {
+            state.memoryEnabled = !state.memoryEnabled;
+            const icon = memoryToggle.querySelector('i');
+            const text = memoryToggle.querySelector('span');
+            
+            if (state.memoryEnabled) {
+                icon.className = 'fas fa-brain';
+                text.textContent = 'Memory: ON';
+                showNotification('Claude context memory enabled', 'success');
+            } else {
+                icon.className = 'fas fa-brain';
+                text.textContent = 'Memory: OFF';
+                showNotification('Claude context memory disabled', 'warning');
+            }
+        }
+
+        // Copy to clipboard
+        window.copyToClipboard = function(button) {
+            const messageText = button.closest('.message').querySelector('.message-text').textContent;
+            navigator.clipboard.writeText(messageText).then(() => {
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                setTimeout(() => button.innerHTML = originalText, 2000);
+            });
+        };
+
+        // Regenerate response
+        window.regenerateResponse = function() {
+            if (state.messages.length > 0) {
+                const lastUserMessage = state.messages.filter(m => m.type === 'user').pop();
+                if (lastUserMessage) {
+                    input.value = lastUserMessage.text;
+                    sendMessage();
+                }
+            }
+        };
+    </script>
+</body>
+</html>
